@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 
 import argparse
+import dataclasses
+import datetime
 import json
 import logging
 import os
 import sys
+from enum import Enum
 
 import openai
 
@@ -12,15 +15,42 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 LOG = logging.getLogger(__name__)
 
-logging.basicConfig(
-    stream=sys.stdout,
-    level=logging.INFO,
-    format="%(message)s",
-)
+
+class Model(Enum):
+    """
+    The name of the OpenAI model to use for the request. This is a
+    required parameter, and you'll need to choose the model that's best
+    suited to your use case.
+    """
+
+    TEXT_DAVINCI_003 = "text-davinci-003"
+    """
+    Most capable GPT-3 model. Can do any task the other models can do, often
+    with higher quality, longer output and better instruction-following. Also
+    supports inserting completions within text.
+    """
+
+    CODE_DAVINCI_002 = "code-davinci-002"
+    """
+    Most capable Codex model. Particularly good at translating natural
+    language to code. In addition to completing code, also supports inserting
+    completions within code.
+    """
+
+    CODE_CUSHMAN_001 = "code-cushman-001"
+    """
+    Almost as capable as Davinci Codex, but slightly faster. This speed
+    advantage may make it preferable for real-time applications.
+    """
+
+
+@dataclasses.dataclass
+class Completion:
+    text: str
 
 
 STOP = "\n"
-DEFAULT_MODEL = "text-davinci-003"
+DEFAULT_MODEL = Model.TEXT_DAVINCI_003
 DEFAULT_TEMPERATURE = 0
 DEFAULT_MAX_TOKENS = 256
 DEFAULT_TOP_P = 1.0
@@ -28,15 +58,68 @@ DEFAULT_FREQUENCY_PENALTY = 0.0
 DEFAULT_PRESENCE_PENALTY = 0.0
 
 
-def request_completion(request) -> str:
+def to_json(obj, indent=None):
+    """
+    Convert an object to JSON string.
+
+    :param obj: The object to convert.
+    :param indent: The number of spaces to indent the JSON string.
+
+    :return: The JSON string.
+    """
+
+    class CustomJSONEncoder(json.JSONEncoder):
+        def default(self, obj):
+            if dataclasses.is_dataclass(obj):
+                return dataclasses.asdict(obj)
+            if isinstance(obj, Enum):
+                return obj.value
+            if isinstance(obj, (datetime.datetime, datetime.date)):
+                return obj.isoformat()
+            return super().default(obj)
+
+    return json.dumps(obj, cls=CustomJSONEncoder, indent=indent)
+
+
+def create_completion(
+    model: Model,
+    prompt: str,
+    temperature: float,
+    max_tokens: int,
+    top_p: float,
+    frequency_penalty: float,
+    presence_penalty: float,
+) -> Completion:
+    """
+    Create a completion request.
+
+    :param model: The name of the OpenAI model to use for the request.
+    :param prompt: The prompt or text to use as input for the model.
+    :param temperature: A float value that controls the creativity of the generated output.
+    :param max_tokens: An integer value that controls the maximum number of tokens (words, punctuation, and other symbols) to generate in response to the prompt.
+    :param top_p: A float value that controls the diversity of the generated output.
+    :param frequency_penalty: A float value that discourages the model from generating text that includes certain keywords or phrases.
+    :param presence_penalty: A float value that encourages the model to generate text that includes certain keywords or phrases.
+
+    :return: A completion request.
+    """
+    request = dict(
+        model=model.value,
+        prompt=prompt,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        top_p=top_p,
+        frequency_penalty=frequency_penalty,
+        presence_penalty=presence_penalty,
+    )
     LOG.debug("request:")
-    LOG.debug(f"json```\n{json.dumps(request, indent=1)}```")
+    LOG.debug(f"json```\n{to_json(request, indent=2)}```")
 
     response = openai.Completion.create(**request)
-    LOG.debug("response:")
-    LOG.debug(f"json```\n{json.dumps(response, indent=1)}```")
 
-    return response.choices[0].text
+    LOG.debug("response:")
+    LOG.debug(f"json```\n{to_json(response, indent=2)}```")
+    return Completion(response.choices[0].text)
 
 
 def main():
@@ -81,6 +164,7 @@ def main():
     )
     parser.add_argument(
         "--model",
+        type=Model,
         default=DEFAULT_MODEL,
         help=f"model (default: {DEFAULT_MODEL})",
     )
@@ -106,7 +190,7 @@ def main():
             "presence_penalty": DEFAULT_PRESENCE_PENALTY,
             "model": DEFAULT_MODEL,
         }
-        print(json.dumps(defaults, indent=2))
+        print(to_json(defaults, indent=2))
         return
 
     if args.debug:
@@ -120,7 +204,7 @@ def main():
     if not args.silent:
         print(input_text)
 
-    request = dict(
+    completion = create_completion(
         model=args.model,
         prompt=f"{input_text}{STOP}",
         temperature=args.temperature,
@@ -129,12 +213,16 @@ def main():
         frequency_penalty=args.frequency_penalty,
         presence_penalty=args.presence_penalty,
     )
-    text = request_completion(request)
-    print(text)
+    print(completion.text)
 
 
 if __name__ == "__main__":
     try:
+        logging.basicConfig(
+            stream=sys.stdout,
+            level=logging.INFO,
+            format="%(message)s",
+        )
         main()
     except KeyboardInterrupt:
         LOG.debug("KeyboardInterrupt")
