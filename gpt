@@ -19,157 +19,24 @@ logging.basicConfig(
 )
 
 
-def debug(event, code=None, language=None):
-    def create_message():
-        message = f"{event}"
-
-        if code:
-            languages = {
-                "python": "python",
-                "py": "py",
-                "json": "json",
-                None: "",
-            }
-
-            message += f"\n```{languages[language]}\n{code}\n```"
-
-        return message
-
-    LOG.debug("%s", create_message())
-
-
-def request_completion(request) -> str:
-    debug("sending request", json.dumps(request, indent=1), "json")
-    response = openai.Completion.create(**request)
-    debug("response", json.dumps(response, indent=1), "json")
-
-    return response.choices[0].text
-
-
-def code_question(question):
-    prompt = f"""
-I am a highly intelligent python question answering bot. If you ask me a question about python or code in general, I will give you the answer. If you ask me a question that is nonsense, trickery, or has no clear answer, I will respond with "Unknown".
-
-Q: How to get the name of the function in python?
-A: In Python, you can get the name of a function by accessing the __name__ attribute of the function object. The __name__ attribute is a built-in attribute of all Python functions that contains the name of the function as a string.
-
-Q: 
-A: 
-
-Q: 
-A: 
-
-Q: 
-A: 
-
-Q: 
-A: 
-
-Q: 
-A: 
-
-Q: How many squigs are in a bonk?
-A: Unknown\n
-
-Q: {question}
-A: 
-"""
-    request = dict(
-        model="text-davinci-003",
-        prompt=prompt,
-        temperature=0,
-        max_tokens=100,
-        top_p=1,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        stop=["\n"],
-    )
-    response_text = request_completion(request)
-    print(response_text)
-
-
-def question(question):
-    prompt = f"""
-I am a highly intelligent question answering bot. If you ask me a question that is rooted in truth, I will give you the answer. If you ask me a question that is nonsense, trickery, or has no clear answer, I will respond with "Unknown".
-
-Q: What is human life expectancy in the United States?
-A: Human life expectancy in the United States is 78 years.
-
-Q: Who was president of the United States in 1955?
-A: Dwight D. Eisenhower was president of the United States in 1955.
-
-Q: Which party did he belong to?
-A: He belonged to the Republican Party.
-
-Q: What is the square root of banana?
-A: Unknown
-
-Q: How does a telescope work?
-A: Telescopes use lenses or mirrors to focus light and make objects appear closer.
-
-Q: Where were the 1992 Olympics held?
-A: The 1992 Olympics were held in Barcelona, Spain.
-
-Q: How many squigs are in a bonk?
-A: Unknown\n
-
-Q: {question}
-A: 
-"""
-    request = dict(
-        model="text-davinci-003",
-        prompt=prompt,
-        temperature=0,
-        max_tokens=100,
-        top_p=1,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        stop=["\n"],
-    )
-    response_text = request_completion(request)
-    print(response_text)
-
-
-def explain_code(code):
-    STOP = '"""'
-
-    prompt = f"""{code}{STOP}
-Here is an explaination of the above code:"""
-
-    request = dict(
-        model="code-davinci-002",
-        prompt=prompt,
-        temperature=0,
-        max_tokens=64,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        stop=['"""'],
-    )
-    response_text = request_completion(request)
-    print(response_text)
-
-
 STOP = "\n"
-
-
-def read_input(args):
-    LOG.debug("args: %s", args)
-    if len(args) == 0:
-        LOG.debug("reading from stdin")
-        return sys.stdin.read()
-    else:
-        LOG.debug("reading from file")
-        with open(args[0], "r") as f:
-            return f.read()
-
-
 DEFAULT_MODEL = "text-davinci-003"
 DEFAULT_TEMPERATURE = 0
 DEFAULT_MAX_TOKENS = 64
 DEFAULT_TOP_P = 1.0
 DEFAULT_FREQUENCY_PENALTY = 0.0
 DEFAULT_PRESENCE_PENALTY = 0.0
+
+
+def request_completion(request) -> str:
+    LOG.debug("request:")
+    LOG.debug(f"json```\n{json.dumps(request, indent=1)}```")
+
+    response = openai.Completion.create(**request)
+    LOG.debug("response:")
+    LOG.debug(f"json```\n{json.dumps(response, indent=1)}```")
+
+    return response.choices[0].text
 
 
 def main():
@@ -183,30 +50,64 @@ def main():
     )
     parser.add_argument("--debug", action="store_true", help="enable debug output")
     parser.add_argument(
-        "--temperature", type=float, default=DEFAULT_TEMPERATURE, help="temperature"
+        "--temperature",
+        type=float,
+        default=DEFAULT_TEMPERATURE,
+        help=f"temperature (default: {DEFAULT_TEMPERATURE})",
     )
     parser.add_argument(
-        "--max-tokens", type=int, default=DEFAULT_MAX_TOKENS, help="max tokens"
+        "--max-tokens",
+        type=int,
+        default=DEFAULT_MAX_TOKENS,
+        help=f"max tokens (default: {DEFAULT_MAX_TOKENS})",
     )
-    parser.add_argument("--top-p", type=float, default=DEFAULT_TOP_P, help="top p")
+    parser.add_argument(
+        "--top-p",
+        type=float,
+        default=DEFAULT_TOP_P,
+        help=f"top p (default: {DEFAULT_TOP_P})",
+    )
     parser.add_argument(
         "--frequency-penalty",
         type=float,
         default=DEFAULT_FREQUENCY_PENALTY,
-        help="frequency penalty",
+        help=f"frequency penalty (default: {DEFAULT_FREQUENCY_PENALTY})",
     )
     parser.add_argument(
         "--presence-penalty",
         type=float,
         default=DEFAULT_PRESENCE_PENALTY,
-        help="presence penalty",
+        help=f"presence penalty (default: {DEFAULT_PRESENCE_PENALTY})",
     )
-    # silent, no print of input
     parser.add_argument(
-        "--silent", action="store_true", help="silent, no print of input"
+        "--model",
+        default=DEFAULT_MODEL,
+        help=f"model (default: {DEFAULT_MODEL})",
+    )
+    parser.add_argument(
+        "--default",
+        action="store_true",
+        help="print default parameters",
+    )
+    parser.add_argument(
+        "--silent",
+        action="store_true",
+        help="silent, no print of input",
     )
 
     args = parser.parse_args()
+
+    if args.default:
+        defaults = {
+            "temperature": DEFAULT_TEMPERATURE,
+            "max_tokens": DEFAULT_MAX_TOKENS,
+            "top_p": DEFAULT_TOP_P,
+            "frequency_penalty": DEFAULT_FREQUENCY_PENALTY,
+            "presence_penalty": DEFAULT_PRESENCE_PENALTY,
+            "model": DEFAULT_MODEL,
+        }
+        print(json.dumps(defaults, indent=2))
+        return
 
     if args.debug:
         LOG.setLevel(logging.DEBUG)
@@ -231,55 +132,6 @@ def main():
     text = request_completion(request)
     print(text)
 
-    # try:
-    #     if "--debug" in sys.argv:
-    #         LOG.setLevel(logging.DEBUG)
-    #         LOG.debug("Verbose output enabled")
-    #         LOG.debug("argv: %s", sys.argv)
-    #         sys.argv.remove("--debug")
-
-    #     args = sys.argv[1:]
-    #     if len(args) == 0:
-    #         LOG.debug("reading from stdin")
-    #         input = sys.stdin.read()
-    #     else:
-    #         LOG.debug("reading from file")
-    #         with open(args[0], "r") as f:
-    #             input = f.read()
-    #     print(input)
-    #     request = dict(
-    #         model="text-davinci-003",
-    #         prompt=f"{input}{STOP}",
-    #         temperature=0,
-    #         max_tokens=64,
-    #         top_p=1.0,
-    #         frequency_penalty=0.0,
-    #         presence_penalty=0.0,
-    #     )
-    #     text = request_completion(request)
-    #     print(text)
-
-    # # if first argument is a file
-    # if os.path.isfile(args[0]):
-    #     with open(args[0], "r") as f:
-    #         query = f.read()
-    #         # TODO: sanity checks!!!!
-    #         response = standard_input(query)
-    #         print(response)
-    # else:
-    #     query = sys.stdin.read()
-    #     response = standard_input(query)
-    #     print(response)
-
-
-# Usage: gpt <file>
-# Commands:
-#   --code <code>  Explain code
-#   --question <question>  Ask a question
-#   --code-question <code-question>  Ask a code question
-# Options:
-#   -h, --help      Show this message and exit.
-#   -v, --verbose   Show verbose output
 
 if __name__ == "__main__":
     try:
@@ -287,44 +139,3 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         LOG.debug("KeyboardInterrupt")
         sys.exit(1)
-    # exit(0)
-    # parser = argparse.ArgumentParser(description="GPT-3 CLI application")
-
-    # parser.add_argument(
-    #     "-v", "--verbose", action="store_true", help="Show verbose output"
-    # )
-    # parser.add_argument("--code", help="Explain code")
-    # parser.add_argument("--question", help="Ask a question")
-    # parser.add_argument("--code-question", help="Ask a code question")
-    # parser.add_argument("--stdin", action="store_true", help="Read from stdin")
-    # parser.add_argument("--file", help="Read from file")
-    # args = parser.parse_args()
-
-    # if args.verbose:
-    #     LOG.setLevel(logging.DEBUG)
-    #     LOG.debug("Verbose output enabled")
-    #     print("Verbose output enabled")
-
-    # if args.code:
-    #     explain_code(sys.stdin.read())
-    #     exit(0)
-    # elif args.question:
-    #     query = input("Q: ")
-    #     question(query)
-    # elif args.code_question:
-    #     pass
-    # elif args.stdin:
-    #     query = sys.stdin.read()
-    #     response = standard_input(query)
-    #     print(response)
-    # elif args.file:
-    #     print("file", args.file)
-    #     exit(0)
-
-    #     with open(args.file, "r") as f:
-    #         query = f.read()
-    #         response = standard_input(query)
-    #         print(response)
-    # else:
-    #     parser.print_help()
-    #     exit(1)
