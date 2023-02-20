@@ -121,7 +121,7 @@ def main():
         print(input_text)
 
     request = dict(
-        model=DEFAULT_MODEL,
+        model=args.model,
         prompt=f"{input_text}{STOP}",
         temperature=args.temperature,
         max_tokens=args.max_tokens,
