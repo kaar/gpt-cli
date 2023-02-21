@@ -63,12 +63,25 @@ class CompletionRequest:
 
     model: str
     """
-    ID of the model to use. You can use the List models API to see all
-    of your available models, or see our Model overview for descriptions
-    of them.
+    The name of the OpenAI model to use for the request. This is a
+    required parameter, and you'll need to choose the model that's best
+    suited to your use case.
 
-    https://platform.openai.com/docs/api-reference/models/list
-    https://platform.openai.com/docs/models/overview
+    text-davinci-003
+        Most capable GPT-3 model. Can do any task the other models can do, often
+        with higher quality, longer output and better instruction-following. Also
+        supports inserting completions within text.
+
+    code-davinci-002
+        Most capable Codex model. Particularly good at translating natural
+        language to code. In addition to completing code, also supports inserting
+        completions within code.
+
+    code-cushman-001
+        Almost as capable as Davinci Codex, but slightly faster. This speed
+        advantage may make it preferable for real-time applications.
+
+    Full list: https://platform.openai.com/docs/api-reference/models/list
     """
 
     prompt: str
@@ -193,30 +206,6 @@ class CompletionRequest:
 
 
 DEFAULT_MODEL = "text-davinci-003"
-"""
-The default model to use for completion requests.
-
-The name of the OpenAI model to use for the request. This is a
-required parameter, and you'll need to choose the model that's best
-suited to your use case.
-
-text-davinci-003
-    Most capable GPT-3 model. Can do any task the other models can do, often
-    with higher quality, longer output and better instruction-following. Also
-    supports inserting completions within text.
-
-code-davinci-002
-    Most capable Codex model. Particularly good at translating natural
-    language to code. In addition to completing code, also supports inserting
-    completions within code.
-
-code-cushman-001
-    Almost as capable as Davinci Codex, but slightly faster. This speed
-    advantage may make it preferable for real-time applications.
-
-Full list: https://platform.openai.com/docs/api-reference/models/list
-"""
-
 DEFAULT_TEMPERATURE = 0.2
 DEFAULT_MAX_TOKENS = 256
 DEFAULT_TOP_P = 1.0
