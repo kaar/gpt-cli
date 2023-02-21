@@ -189,6 +189,9 @@ class CompletionRequest:
     reasonable settings for max_tokens and stop.
     """
 
+    def __str__(self) -> str:
+        return json.dumps(dataclasses.asdict(self), indent=2)
+
 
 """
 List of all the available models.
@@ -227,39 +230,14 @@ DEFAULT_FREQUENCY_PENALTY = 0.0
 DEFAULT_PRESENCE_PENALTY = 0.0
 
 
-def to_json(obj, indent=None):
-    """
-    Convert an object to JSON string.
-
-    :param obj: The object to convert.
-    :param indent: The number of spaces to indent the JSON string.
-
-    :return: The JSON string.
-    """
-
-    class CustomJSONEncoder(json.JSONEncoder):
-        def default(self, obj):
-            if dataclasses.is_dataclass(obj):
-                return dataclasses.asdict(obj)
-            if isinstance(obj, Enum):
-                return obj.value
-            if isinstance(obj, (datetime.datetime, datetime.date)):
-                return obj.isoformat()
-            return super().default(obj)
-
-    return json.dumps(obj, cls=CustomJSONEncoder, indent=indent)
-
-
 class Completion:
     @classmethod
     def create(cls, request: CompletionRequest) -> CompletionResponse:
-        LOG.debug("request:")
-        LOG.debug(f"json```\n{to_json(request, indent=2)}```")
+        LOG.debug(f"{request=}")
         response = CompletionResponse.from_dict(
             openai.Completion.create(**request.__dict__)
         )
-        LOG.debug("response:")
-        LOG.debug(f"json```\n{to_json(response, indent=2)}```")
+        LOG.debug(f"{response=}")
         return response
 
 
@@ -314,23 +292,25 @@ def main():
         help=f"model (default: {DEFAULT_MODEL})",
     )
     parser.add_argument(
-        "--default",
+        "--print-defaults",
         action="store_true",
         help="print default parameters",
     )
 
     args = parser.parse_args()
 
-    if args.default:
-        defaults = {
-            "temperature": DEFAULT_TEMPERATURE,
-            "max_tokens": DEFAULT_MAX_TOKENS,
-            "top_p": DEFAULT_TOP_P,
-            "frequency_penalty": DEFAULT_FREQUENCY_PENALTY,
-            "presence_penalty": DEFAULT_PRESENCE_PENALTY,
-            "model": DEFAULT_MODEL,
-        }
-        print(to_json(defaults, indent=2))
+    if args.print_defaults:
+        request_defaults = CompletionRequest(
+            model=args.model,
+            prompt="",
+            temperature=args.temperature,
+            max_tokens=args.max_tokens,
+            top_p=args.top_p,
+            frequency_penalty=args.frequency_penalty,
+            presence_penalty=args.presence_penalty,
+            echo=True,
+        )
+        print(f"Default parameters:\n{request_defaults}")
         return
 
     if args.debug:
