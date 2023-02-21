@@ -205,15 +205,6 @@ class CompletionRequest:
         return json.dumps(dataclasses.asdict(self), indent=2)
 
 
-DEFAULT_MODEL = "text-davinci-003"
-DEFAULT_TEMPERATURE = 0.2
-DEFAULT_MAX_TOKENS = 256
-DEFAULT_TOP_P = 1.0
-DEFAULT_FREQUENCY_PENALTY = 0.0
-DEFAULT_PRESENCE_PENALTY = 0.0
-STOP = "\n"
-
-
 class Completion:
     @classmethod
     def create(cls, request: CompletionRequest) -> CompletionResponse:
@@ -223,6 +214,15 @@ class Completion:
         )
         LOG.debug(f"{response=}")
         return response
+
+
+DEFAULT_MODEL = "text-davinci-003"
+DEFAULT_TEMPERATURE = 0.2
+DEFAULT_MAX_TOKENS = 256
+DEFAULT_TOP_P = 1.0
+DEFAULT_FREQUENCY_PENALTY = 0.0
+DEFAULT_PRESENCE_PENALTY = 0.0
+STOP = "\n"
 
 
 def main():
