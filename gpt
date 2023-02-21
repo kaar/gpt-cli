@@ -131,6 +131,7 @@ def main():
         default=sys.stdin,
         help="input file",
     )
+    parser.add_argument("chat", action="store_true", help="chat mode")
     parser.add_argument("--debug", action="store_true", help="enable debug output")
     parser.add_argument(
         "--temperature",
@@ -197,6 +198,26 @@ def main():
         LOG.setLevel(logging.DEBUG)
         LOG.debug("Verbose output enabled")
         LOG.debug("argv: %s", sys.argv)
+
+    if args.chat:
+        history = ""
+        while True:
+            prompt = input("> ")
+            if prompt == "exit":
+                break
+            history += prompt
+            completion = create_completion(
+                model=args.model,
+                prompt=history + STOP,
+                temperature=args.temperature,
+                max_tokens=args.max_tokens,
+                top_p=args.top_p,
+                frequency_penalty=args.frequency_penalty,
+                presence_penalty=args.presence_penalty,
+            )
+            history += completion.text + STOP
+            print(completion.text)
+
 
     input_text = args.file.read().strip()
     LOG.debug("input: %s", input_text)
