@@ -266,14 +266,17 @@ class Completion:
 def main():
     parser = argparse.ArgumentParser(description="OpenAI GPT-3 text completion")
     parser.add_argument(
-        "file",
-        nargs="?",
-        type=argparse.FileType("r"),
-        default=sys.stdin,
-        help="input file",
+        "--chat",
+        action="store_true",
+        default=False,
+        help="chat mode",
     )
-    parser.add_argument("chat", action="store_true", help="chat mode")
-    parser.add_argument("--debug", action="store_true", help="enable debug output")
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        default=False,
+        help="enable debug output",
+    )
     parser.add_argument(
         "--temperature",
         type=float,
@@ -341,6 +344,7 @@ def main():
         LOG.debug("argv: %s", sys.argv)
 
     if args.chat:
+        LOG.debug("chat mode enabled")
         history = ""
         try:
             while True:
@@ -364,7 +368,7 @@ def main():
             LOG.debug("EOF")
             return
 
-    input_text = args.file.read().strip()
+    input_text = sys.stdin.read().strip()
     LOG.debug("input: %s", input_text)
 
     completion = Completion.create(
