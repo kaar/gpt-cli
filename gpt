@@ -16,41 +16,175 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 LOG = logging.getLogger(__name__)
 
 
-class Model(Enum):
-    """
-    The name of the OpenAI model to use for the request. This is a
-    required parameter, and you'll need to choose the model that's best
-    suited to your use case.
-    """
-
-    TEXT_DAVINCI_003 = "text-davinci-003"
-    """
-    Most capable GPT-3 model. Can do any task the other models can do, often
-    with higher quality, longer output and better instruction-following. Also
-    supports inserting completions within text.
-    """
-
-    CODE_DAVINCI_002 = "code-davinci-002"
-    """
-    Most capable Codex model. Particularly good at translating natural
-    language to code. In addition to completing code, also supports inserting
-    completions within code.
-    """
-
-    CODE_CUSHMAN_001 = "code-cushman-001"
-    """
-    Almost as capable as Davinci Codex, but slightly faster. This speed
-    advantage may make it preferable for real-time applications.
-    """
-
-
 @dataclasses.dataclass
 class Completion:
     text: str
 
 
+@dataclasses.dataclass
+class CompletionRequest:
+    """
+    A request to the OpenAI API to generate a completion.
+    """
+
+    model: str
+    """
+    ID of the model to use. You can use the List models API to see all
+    of your available models, or see our Model overview for descriptions
+    of them.
+
+    https://platform.openai.com/docs/api-reference/models/list
+    https://platform.openai.com/docs/models/overview
+    """
+
+    prompt: str
+    """
+    The prompt(s) to generate completions for, encoded as a string,
+    array of strings, array of tokens, or array of token arrays.
+
+    Note that <|endoftext|> is the document separator that the model
+    sees during training, so if a prompt is not specified the model will
+    generate as if from the beginning of a new document.
+    """
+
+    suffix: str | None = None
+    """
+    The suffix that comes after a completion of inserted text.
+    """
+
+    max_tokens: int = 16
+    """
+    The maximum number of tokens to generate in the completion.
+
+    The token count of your prompt plus max_tokens cannot exceed the
+    model's context length. Most models have a context length of 2048
+    tokens (except for the newest models, which support 4096).
+
+    https://platform.openai.com/tokenizer
+    """
+
+    temperature: float = 1
+    """
+    What sampling temperature to use, between 0 and 2. Higher values
+    like 0.8 will make the output more random, while lower values like
+    0.2 will make it more focused and deterministic.
+
+    We generally recommend altering this or top_p but not both.
+    """
+
+    top_p: float = 1
+    """
+    An alternative to sampling with temperature, called nucleus sampling,
+    where the model considers the results of the tokens with top_p
+    probability mass. So 0.1 means only the tokens comprising the top 10%
+    probability mass are considered.
+
+    We generally recommend altering this or temperature but not both.
+    """
+
+    n: int = 1
+    """
+    How many completions to generate for each prompt.
+
+    Note: Because this parameter generates many completions, it can
+    quickly consume your token quota. Use carefully and ensure that you
+    have reasonable settings for max_tokens and stop.
+    """
+
+    stream: bool = False
+    """
+    Whether to stream back partial progress. If set, tokens will be sent as
+    data-only server-sent events as they become available, with the stream
+    terminated by a data: [DONE] message.
+
+    https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format
+    """
+
+    logprobs: int | None = None
+    """
+    Include the log probabilities on the logprobs most likely tokens,
+    as well the chosen tokens. For example, if logprobs is 5, the API will
+    return a list of the 5 most likely tokens. The API will always return the
+    logprob of the sampled token, so there may be up to logprobs+1 elements
+    in the response.
+
+    The maximum value for logprobs is 5. If you need more than this, please
+    contact us through our Help center and describe your use case.
+    """
+
+    echo: bool = False
+    """
+    Echo back the prompt in addition to the completion
+    """
+
+    stop: str | list[str] | None = None
+    """
+    Up to 4 sequences where the API will stop generating further tokens. The
+    returned text will not contain the stop sequence.
+    """
+
+    presence_penalty: float = 0
+    """
+    Number between -2.0 and 2.0. Positive values penalize new tokens based on
+    whether they appear in the text so far, increasing the model's likelihood
+    to talk about new topics.
+
+    https://platform.openai.com/docs/api-reference/parameter-details
+    """
+
+    frequency_penalty: float = 0
+    """
+    Number between -2.0 and 2.0. Positive values penalize new tokens based
+    on their existing frequency in the text so far, decreasing the model's
+    likelihood to repeat the same line verbatim.
+
+    https://platform.openai.com/docs/api-reference/parameter-details
+    """
+
+    best_of: int = 1
+    """
+    Generates best_of completions server-side and returns the "best" (the one
+    with the highest log probability per token). Results cannot be streamed.
+
+    When used with n, best_of controls the number of candidate completions
+    and n specifies how many to return – best_of must be greater than n.
+
+    Note: Because this parameter generates many completions, it can quickly
+    consume your token quota. Use carefully and ensure that you have
+    reasonable settings for max_tokens and stop.
+    """
+
+
+"""
+List of all the available models.
+"""
+
 STOP = "\n"
-DEFAULT_MODEL = Model.TEXT_DAVINCI_003
+DEFAULT_MODEL = "text-davinci-003"
+"""
+The default model to use for completion requests.
+
+The name of the OpenAI model to use for the request. This is a
+required parameter, and you'll need to choose the model that's best
+suited to your use case.
+
+text-davinci-003
+    Most capable GPT-3 model. Can do any task the other models can do, often
+    with higher quality, longer output and better instruction-following. Also
+    supports inserting completions within text.
+
+code-davinci-002
+    Most capable Codex model. Particularly good at translating natural
+    language to code. In addition to completing code, also supports inserting
+    completions within code.
+
+code-cushman-001
+    Almost as capable as Davinci Codex, but slightly faster. This speed
+    advantage may make it preferable for real-time applications.
+
+Full list: https://platform.openai.com/docs/api-reference/models/list
+"""
+
 DEFAULT_TEMPERATURE = 0
 DEFAULT_MAX_TOKENS = 256
 DEFAULT_TOP_P = 1.0
@@ -81,41 +215,31 @@ def to_json(obj, indent=None):
     return json.dumps(obj, cls=CustomJSONEncoder, indent=indent)
 
 
-def create_completion(
-    model: Model,
-    prompt: str,
-    temperature: float,
-    max_tokens: int,
-    top_p: float,
-    frequency_penalty: float,
-    presence_penalty: float,
-) -> Completion:
-    """
-    Create a completion request.
-
-    :param model: The name of the OpenAI model to use for the request.
-    :param prompt: The prompt or text to use as input for the model.
-    :param temperature: A float value that controls the creativity of the generated output.
-    :param max_tokens: An integer value that controls the maximum number of tokens (words, punctuation, and other symbols) to generate in response to the prompt.
-    :param top_p: A float value that controls the diversity of the generated output.
-    :param frequency_penalty: A float value that discourages the model from generating text that includes certain keywords or phrases.
-    :param presence_penalty: A float value that encourages the model to generate text that includes certain keywords or phrases.
-
-    :return: A completion request.
-    """
-    request = dict(
-        model=model.value,
-        prompt=prompt,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        top_p=top_p,
-        frequency_penalty=frequency_penalty,
-        presence_penalty=presence_penalty,
-    )
+def create_completion(request: CompletionRequest) -> Completion:
     LOG.debug("request:")
     LOG.debug(f"json```\n{to_json(request, indent=2)}```")
 
-    response = openai.Completion.create(**request)
+    response = openai.Completion.create(**request.__dict__)
+    # Example response:
+    # {
+    #   "id": "cmpl-uqkvlQyYK7bGYrRHQ0eXlWi7",
+    #   "object": "text_completion",
+    #   "created": 1589478378,
+    #   "model": "text-davinci-003",
+    #   "choices": [
+    #     {
+    #       "text": "\n\nThis is indeed a test",
+    #       "index": 0,
+    #       "logprobs": null,
+    #       "finish_reason": "length"
+    #     }
+    #   ],
+    #   "usage": {
+    #     "prompt_tokens": 5,
+    #     "completion_tokens": 7,
+    #     "total_tokens": 12
+    #   }
+    # }
 
     LOG.debug("response:")
     LOG.debug(f"json```\n{to_json(response, indent=2)}```")
@@ -165,7 +289,7 @@ def main():
     )
     parser.add_argument(
         "--model",
-        type=Model,
+        type=str,
         default=DEFAULT_MODEL,
         help=f"model (default: {DEFAULT_MODEL})",
     )
@@ -201,38 +325,42 @@ def main():
 
     if args.chat:
         history = ""
-        while True:
-            prompt = input("> ")
-            if prompt == "exit":
-                break
-            history += prompt
-            completion = create_completion(
-                model=args.model,
-                prompt=history + STOP,
-                temperature=args.temperature,
-                max_tokens=args.max_tokens,
-                top_p=args.top_p,
-                frequency_penalty=args.frequency_penalty,
-                presence_penalty=args.presence_penalty,
-            )
-            history += completion.text + STOP
-            print(completion.text)
+        try:
+            while True:
+                prompt = input("> ")
+                history += prompt
 
+                completion = create_completion(
+                    CompletionRequest(
+                        model=args.model,
+                        prompt=history + STOP,
+                        temperature=args.temperature,
+                        max_tokens=args.max_tokens,
+                        top_p=args.top_p,
+                        frequency_penalty=args.frequency_penalty,
+                        presence_penalty=args.presence_penalty,
+                    )
+                )
+                history += completion.text + STOP
+                print(completion.text)
+        except EOFError:
+            LOG.debug("EOF")
+            return
 
     input_text = args.file.read().strip()
     LOG.debug("input: %s", input_text)
 
-    if not args.silent:
-        print(input_text)
-
     completion = create_completion(
-        model=args.model,
-        prompt=f"{input_text}{STOP}",
-        temperature=args.temperature,
-        max_tokens=args.max_tokens,
-        top_p=args.top_p,
-        frequency_penalty=args.frequency_penalty,
-        presence_penalty=args.presence_penalty,
+        CompletionRequest(
+            model=args.model,
+            prompt=f"{input_text}{STOP}",
+            temperature=0.8,
+            max_tokens=args.max_tokens,
+            top_p=args.top_p,
+            frequency_penalty=args.frequency_penalty,
+            presence_penalty=args.presence_penalty,
+            echo=not args.silent,
+        )
     )
     print(completion.text)
 
