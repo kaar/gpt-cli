@@ -318,11 +318,6 @@ def main():
         action="store_true",
         help="print default parameters",
     )
-    parser.add_argument(
-        "--silent",
-        action="store_true",
-        help="silent, no print of input",
-    )
 
     args = parser.parse_args()
 
@@ -380,7 +375,7 @@ def main():
             top_p=args.top_p,
             frequency_penalty=args.frequency_penalty,
             presence_penalty=args.presence_penalty,
-            echo=not args.silent,
+            echo=True,
         )
     )
     print(completion.text)
