@@ -350,7 +350,7 @@ def main():
         CompletionRequest(
             model=args.model,
             prompt=f"{input_text}{STOP}",
-            temperature=0.8,
+            temperature=args.temperature,
             max_tokens=args.max_tokens,
             top_p=args.top_p,
             frequency_penalty=args.frequency_penalty,
