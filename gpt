@@ -225,6 +225,11 @@ STOP = "\n"
 def main():
     parser = argparse.ArgumentParser(description="OpenAI GPT-3 text completion")
     parser.add_argument(
+        "--history",
+        type=argparse.FileType(mode="r"),
+        help="Read history from a file",
+    )
+    parser.add_argument(
         "--chat",
         action="store_true",
         default=False,
@@ -301,8 +306,12 @@ def main():
 
     if args.chat:
         LOG.debug("chat mode enabled")
-        history = ""
         try:
+            history = ""
+            if args.history:
+                LOG.debug("reading history from %s", args.history.name)
+                history += args.history.read()
+
             while True:
                 prompt = input("> ")
                 history += prompt
