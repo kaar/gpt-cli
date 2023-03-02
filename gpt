@@ -374,6 +374,7 @@ def main():
         default=False,
         help="chat mode",
     )
+    parser.add_argument("--message", "-m", type=str, help="Send message")
     parser.add_argument(
         "--debug",
         action="store_true",
@@ -423,6 +424,15 @@ def main():
     )
 
     args = parser.parse_args()
+
+    if args.message:
+        chat_completion = ChatCompletion.create(
+            ChatCompletionRequest(
+                messages=[ChatMessage(role="user", content=args.message)],
+            )
+        )
+        print(chat_completion.message.content)
+        return
 
     if args.print_defaults:
         request_defaults = CompletionRequest(
