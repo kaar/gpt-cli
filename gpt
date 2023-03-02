@@ -202,9 +202,127 @@ class CompletionRequest:
         return json.dumps(dataclasses.asdict(self), indent=2)
 
 
+@dataclasses.dataclass
+class ChatMessage:
+    """
+    A chat message sent to or received from the OpenAI API.
+    """
+
+    role: str
+    """
+    The role of the message. Either "user" or "assistant".
+    """
+
+    content: str
+    """
+    The content of the message.
+    """
+
+
+@dataclasses.dataclass
+class ChatCompletionRequest:
+
+    """
+    A request to the OpenAI API to generate a chat completion.
+
+    Example:
+        # Note: you need to be using OpenAI Python v0.27.0 for the code below to work
+        import openai
+
+        openai.ChatCompletion.create(
+          model="gpt-3.5-turbo",
+          messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": "Who won the world series in 2020?"},
+                {"role": "assistant", "content": "The Los Angeles Dodgers won the World Series in 2020."},
+                {"role": "user", "content": "Where was it played?"}
+            ]
+        )
+    """
+
+    messages: list[ChatMessage]
+
+
+@dataclasses.dataclass
+class ChatCompletionResponse:
+    """
+    Response from the OpenAI API for a chat completion request.
+
+    Example:
+        {
+         'id': 'chatcmpl-6p9XYPYSTTRi0xEviKjjilqrWU2Ve',
+         'object': 'chat.completion',
+         'created': 1677649420,
+         'model': 'gpt-3.5-turbo',
+         'usage': {'prompt_tokens': 56, 'completion_tokens': 31, 'total_tokens': 87},
+         'choices': [
+           {
+            'message': {
+              'role': 'assistant',
+              'content': 'The 2020 World Series was played in Arlington, Texas at the Globe Life Field, which was the new home stadium for the Texas Rangers.'},
+            'finish_reason': 'stop',
+            'index': 0
+           }
+          ]
+        }
+    """
+
+    @dataclasses.dataclass
+    class Choices:
+        message: ChatMessage
+        index: int
+        finish_reason: str
+
+    @dataclasses.dataclass
+    class Usage:
+        prompt_tokens: int
+        completion_tokens: int
+        total_tokens: int
+
+    id: str
+    object: str
+    created: datetime.datetime
+    model: str
+    choices: list[Choices]
+    usage: Usage
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ChatCompletionResponse":
+        choices = [
+            cls.Choices(
+                message=ChatMessage(
+                    role=choice["message"]["role"], content=choice["message"]["content"]
+                ),
+                index=choice["index"],
+                finish_reason=choice["finish_reason"],
+            )
+            for choice in data.get("choices", [])
+        ]
+
+        # ) for c in data.get("choices", [])]
+        usage = cls.Usage(**data.get("usage", {}))
+        return cls(
+            id=data.get("id", ""),
+            object=data.get("object", ""),
+            created=datetime.datetime.fromtimestamp(data.get("created", 0)),
+            model=data.get("model", ""),
+            choices=choices,
+            usage=usage,
+        )
+
+    @property
+    def message(self) -> ChatMessage:
+        return self.choices[0].message
+
+
 class Completion:
     @classmethod
     def create(cls, request: CompletionRequest) -> CompletionResponse:
+        """
+        Create text completion.
+
+        https://platform.openai.com/docs/guides/completion/
+        """
         LOG.debug(f"{request=}")
         response = CompletionResponse.from_dict(
             openai.Completion.create(**request.__dict__)
@@ -213,7 +331,28 @@ class Completion:
         return response
 
 
+class ChatCompletion:
+    @classmethod
+    def create(cls, request: ChatCompletionRequest) -> ChatCompletionResponse:
+        """
+        Create a chat completion.
+
+        https://platform.openai.com/docs/guides/chat
+        """
+        LOG.debug(f"{request=}")
+        messages_dict = [message.__dict__ for message in request.messages]
+        response = ChatCompletionResponse.from_dict(
+            openai.ChatCompletion.create(
+                model=DEFAULT_CHAT_MODEL,
+                messages=messages_dict,
+            )
+        )
+        LOG.debug(f"{response=}")
+        return response
+
+
 DEFAULT_MODEL = "text-davinci-003"
+DEFAULT_CHAT_MODEL = "gpt-3.5-turbo"
 DEFAULT_TEMPERATURE = 0.2
 DEFAULT_MAX_TOKENS = 256
 DEFAULT_TOP_P = 1.0
@@ -307,28 +446,23 @@ def main():
     if args.chat:
         LOG.debug("chat mode enabled")
         try:
-            history = ""
             if args.history:
-                LOG.debug("reading history from %s", args.history.name)
-                history += args.history.read()
+                raise NotImplementedError("history needs to be re-implemented")
 
+            messages = []
             while True:
                 prompt = input("> ")
-                history += prompt
+                messages.append(ChatMessage(role="user", content=prompt))
 
-                completion = Completion.create(
-                    CompletionRequest(
-                        model=args.model,
-                        prompt=history + STOP,
-                        temperature=args.temperature,
-                        max_tokens=args.max_tokens,
-                        top_p=args.top_p,
-                        frequency_penalty=args.frequency_penalty,
-                        presence_penalty=args.presence_penalty,
+                chat_completion = ChatCompletion.create(
+                    ChatCompletionRequest(
+                        messages=messages,
                     )
                 )
-                history += completion.text + STOP
-                print(completion.text)
+                messages.append(chat_completion.message)
+
+                print(messages[-1].content)
+
         except EOFError:
             LOG.debug("EOF")
             return
