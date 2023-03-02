@@ -449,6 +449,13 @@ def main():
     parser = argparse.ArgumentParser(description="OpenAI GPT-3 text completion")
     parser.add_argument("--message", "-m", type=str, help="Send message")
     parser.add_argument(
+        "--echo",
+        "-e",
+        action="store_true",
+        default=False,
+        help="Echo input message for stdin",
+    )
+    parser.add_argument(
         "--debug",
         action="store_true",
         default=False,
@@ -474,10 +481,13 @@ def main():
 
     if not sys.stdin.isatty():
         LOG.debug("Reading from stdin")
+        text = sys.stdin.read()
+        if args.echo:
+            print(text, end="")
         chat_completion = ChatCompletion.create(
             ChatCompletionRequest(
                 model=DEFAULT_CHAT_MODEL,
-                messages=[ChatMessage(role="user", content=sys.stdin.read().strip())],
+                messages=[ChatMessage(role="user", content=text)],
             )
         )
         print(chat_completion.message.content)
