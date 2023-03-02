@@ -472,6 +472,14 @@ class ChatCompletion:
 
 def main():
     parser = argparse.ArgumentParser(description="OpenAI GPT-3 text completion")
+    # If isatty take argument file
+    parser.add_argument(
+        "file",
+        type=argparse.FileType("r"),
+        nargs="?",
+        default=sys.stdin,
+        help="File to read text from",
+    )
     parser.add_argument("--message", "-m", type=str, help="Send message")
     parser.add_argument(
         "--silent",
@@ -504,21 +512,27 @@ def main():
         print(chat_completion.message.content)
         return
 
-    if not sys.stdin.isatty():
-        LOG.debug("Reading from stdin")
-        text = sys.stdin.read()
-        if not args.silent:
-            print(text, end="")
-        chat_completion = ChatCompletion.create(
-            ChatCompletionRequest(
-                model=DEFAULT_CHAT_MODEL,
-                messages=[ChatMessage(role="user", content=text)],
-            )
+    text = args.file.read()
+    if not args.silent:
+        print(text, end="")
+
+    chat_completion = ChatCompletion.create(
+        ChatCompletionRequest(
+            model=DEFAULT_CHAT_MODEL,
+            messages=[ChatMessage(role="user", content=text)],
         )
-        print(chat_completion.message.content)
+    )
+    print(chat_completion.message.content)
+
+    if not sys.stdin.isatty():
+        # We are not in interactive mode.
+        # Close file and shotdown
+        LOG.debug("Not in interactive mode")
+        args.file.close()
+        LOG.debug("Closed file")
         return
 
-    LOG.debug("No message provided, starting interactive mode")
+    LOG.debug("Starting interactive mode")
     try:
         messages = []
         while True:
