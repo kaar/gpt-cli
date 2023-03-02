@@ -14,3 +14,7 @@ gpt --chat
 ```
 
 ## Options
+
+## TODO
+* [ChatGPT API](https://openai.com/blog/introducing-chatgpt-and-whisper-apis)
+* [Whisper - English speech recognition](https://openai.com/research/whisper)
