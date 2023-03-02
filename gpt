@@ -12,8 +12,10 @@ import openai
 
 LOG = logging.getLogger(__name__)
 
-# Use the hostname of the machine as user name
-DEFAULT_USER="gpt-cli"
+DEFAULT_USER = "gpt-cli"
+DEFAULT_CHAT_MODEL = "gpt-3.5-turbo"
+DEFAULT_TEXT_MODEL = "text-davinci-003"
+
 
 @dataclasses.dataclass
 class CompletionResponse:
@@ -420,9 +422,7 @@ class Completion:
         LOG.debug(f"{request=}")
         args = dataclasses.asdict(request)
         LOG.debug(f"{args=}")
-        response = CompletionResponse.from_dict(
-            openai.Completion.create(**args)
-        )
+        response = CompletionResponse.from_dict(openai.Completion.create(**args))
         LOG.debug(f"{response=}")
         return response
 
@@ -445,29 +445,8 @@ class ChatCompletion:
         return response
 
 
-DEFAULT_MODEL = "text-davinci-003"
-DEFAULT_CHAT_MODEL = "gpt-3.5-turbo"
-DEFAULT_TEMPERATURE = 0.2
-DEFAULT_MAX_TOKENS = 256
-DEFAULT_TOP_P = 1.0
-DEFAULT_FREQUENCY_PENALTY = 0.0
-DEFAULT_PRESENCE_PENALTY = 0.0
-STOP = "\n"
-
-
 def main():
     parser = argparse.ArgumentParser(description="OpenAI GPT-3 text completion")
-    parser.add_argument(
-        "--history",
-        type=argparse.FileType(mode="r"),
-        help="Read history from a file",
-    )
-    parser.add_argument(
-        "--chat",
-        action="store_true",
-        default=False,
-        help="chat mode",
-    )
     parser.add_argument("--message", "-m", type=str, help="Send message")
     parser.add_argument(
         "--debug",
@@ -475,49 +454,13 @@ def main():
         default=False,
         help="enable debug output",
     )
-    parser.add_argument(
-        "--temperature",
-        type=float,
-        default=DEFAULT_TEMPERATURE,
-        help=f"temperature (default: {DEFAULT_TEMPERATURE})",
-    )
-    parser.add_argument(
-        "--max-tokens",
-        type=int,
-        default=DEFAULT_MAX_TOKENS,
-        help=f"max tokens (default: {DEFAULT_MAX_TOKENS})",
-    )
-    parser.add_argument(
-        "--top-p",
-        type=float,
-        default=DEFAULT_TOP_P,
-        help=f"top p (default: {DEFAULT_TOP_P})",
-    )
-    parser.add_argument(
-        "--frequency-penalty",
-        type=float,
-        default=DEFAULT_FREQUENCY_PENALTY,
-        help=f"frequency penalty (default: {DEFAULT_FREQUENCY_PENALTY})",
-    )
-    parser.add_argument(
-        "--presence-penalty",
-        type=float,
-        default=DEFAULT_PRESENCE_PENALTY,
-        help=f"presence penalty (default: {DEFAULT_PRESENCE_PENALTY})",
-    )
-    parser.add_argument(
-        "--model",
-        type=str,
-        default=DEFAULT_MODEL,
-        help=f"model (default: {DEFAULT_MODEL})",
-    )
-    parser.add_argument(
-        "--print-defaults",
-        action="store_true",
-        help="print default parameters",
-    )
 
     args = parser.parse_args()
+
+    if args.debug:
+        LOG.setLevel(logging.DEBUG)
+        LOG.debug("Verbose output enabled")
+        LOG.debug("argv: %s", sys.argv)
 
     if args.message:
         chat_completion = ChatCompletion.create(
@@ -529,66 +472,37 @@ def main():
         print(chat_completion.message.content)
         return
 
-    if args.print_defaults:
-        request_defaults = CompletionRequest(
-            model=args.model,
-            prompt="",
-            temperature=args.temperature,
-            max_tokens=args.max_tokens,
-            top_p=args.top_p,
-            frequency_penalty=args.frequency_penalty,
-            presence_penalty=args.presence_penalty,
-            echo=True,
+    if not sys.stdin.isatty():
+        LOG.debug("Reading from stdin")
+        chat_completion = ChatCompletion.create(
+            ChatCompletionRequest(
+                model=DEFAULT_CHAT_MODEL,
+                messages=[ChatMessage(role="user", content=sys.stdin.read().strip())],
+            )
         )
-        print(f"Default parameters:\n{request_defaults}")
+        print(chat_completion.message.content)
         return
 
-    if args.debug:
-        LOG.setLevel(logging.DEBUG)
-        LOG.debug("Verbose output enabled")
-        LOG.debug("argv: %s", sys.argv)
+    LOG.debug("No message provided, starting interactive mode")
+    try:
+        messages = []
+        while True:
+            prompt = input("> ")
+            messages.append(ChatMessage(role="user", content=prompt))
 
-    if args.chat:
-        LOG.debug("chat mode enabled")
-        try:
-            if args.history:
-                raise NotImplementedError("history needs to be re-implemented")
-
-            messages = []
-            while True:
-                prompt = input("> ")
-                messages.append(ChatMessage(role="user", content=prompt))
-
-                chat_completion = ChatCompletion.create(
-                    ChatCompletionRequest(
-                        model=DEFAULT_CHAT_MODEL,
-                        messages=messages,
-                    )
+            chat_completion = ChatCompletion.create(
+                ChatCompletionRequest(
+                    model=DEFAULT_CHAT_MODEL,
+                    messages=messages,
                 )
-                messages.append(chat_completion.message)
+            )
+            messages.append(chat_completion.message)
 
-                print(messages[-1].content)
+            print(messages[-1].content)
 
-        except EOFError:
-            LOG.debug("EOF")
-            return
-
-    input_text = sys.stdin.read().strip()
-    LOG.debug("input: %s", input_text)
-
-    completion = Completion.create(
-        CompletionRequest(
-            model=args.model,
-            prompt=f"{input_text}{STOP}",
-            temperature=args.temperature,
-            max_tokens=args.max_tokens,
-            top_p=args.top_p,
-            frequency_penalty=args.frequency_penalty,
-            presence_penalty=args.presence_penalty,
-            echo=True,
-        )
-    )
-    print(completion.text)
+    except EOFError:
+        LOG.debug("EOF")
+        return
 
 
 if __name__ == "__main__":
