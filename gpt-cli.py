@@ -84,7 +84,6 @@ def main():
         default=False,
         help="enable debug output",
     )
-
     args = parser.parse_args()
 
     messages = []
@@ -105,8 +104,9 @@ def main():
 
     if not args.file.isatty():
         LOG.debug("Reading from: %s", args.file.name)
-        print(chat.send(args.file.read(), echo=not args.silent))
-        return
+        with args.file as f:
+            print(chat.send(f.read(), echo=not args.silent))
+            return
 
     LOG.debug("Starting interactive mode")
     try:
